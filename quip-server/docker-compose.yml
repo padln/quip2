@@ -1,0 +1,13 @@
+
+services:
+  web:
+    build: .
+    ports:
+      - "5050:5050"
+    depends_on:
+      - redis
+
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"

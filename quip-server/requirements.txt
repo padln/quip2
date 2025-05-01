@@ -1,0 +1,6 @@
+flask
+redis
+imagehash
+Pillow
+requests
+flask-cors

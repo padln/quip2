@@ -1,0 +1,14 @@
+{
+  "manifest_version": 3,
+  "name": "quip",
+  "version": "1.0",
+  "description": "Detects if images might be AI-generated",
+  "permissions": ["activeTab", "scripting"],
+  "host_permissions": ["<all_urls>"],
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"]
+    }
+  ]
+}
