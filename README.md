@@ -23,3 +23,23 @@
 
 - [ ] Support iframe detection (optional)
 *If you want to analyze images inside iframes (used on some sites).* 
+
+# UX / Frontend polish
+- [ ] Add a popup or badge to the Chrome extension   
+*Let users toggle detection on/off, view logs, or customize thresholds.*  
+
+- [ ] Add hover tooltips or detection scores to overlay  
+*Users can hover over the warning badge to get info like “AI confidence: 92%”.*  
+
+- [ ] Improve styling of overlays  
+*Use transparent overlays or icons that adapt to light/dark images.*  
+
+# Backend & Scaling
+- [ ] Add persistent Redis storage  
+*Use a volume or cloud Redis (right now, all keys disappear when the container stops).*  
+
+- [ ] Move to a production Flask server (e.g., gunicorn + nginx)  
+*For deployment outside local testing.*  
+
+- [ ] Deploy the backend to a cloud host (e.g., Render, Fly.io, or Railway)  
+*So users don’t need it running on localhost.*  
