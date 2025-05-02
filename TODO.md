@@ -22,4 +22,4 @@
 *Some sites load images without a src URL. Handle blobs or embedded images.*  
 
 [ ] Support iframe detection (optional)
-*If you want to analyze images inside iframes (used on some sites).* 
+*If you want to analyze images inside iframes (used on some sites).*  
