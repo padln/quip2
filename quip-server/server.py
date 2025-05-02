@@ -1,10 +1,10 @@
 from flask import Flask, request, jsonify
-import redis
-import imagehash
+import redis # type: ignore
+import imagehash # type: ignore
 from PIL import Image
 import requests
 from io import BytesIO
-from flask_cors import CORS
+from flask_cors import CORS # type: ignore
 
 app = Flask(__name__)
 CORS(app)
