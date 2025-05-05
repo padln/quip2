@@ -1,22 +1,37 @@
 document.addEventListener("DOMContentLoaded", () => {
-    const statusEl = document.getElementById("status");
-    const toggleBtn = document.getElementById("toggle");
-    const countEl = document.getElementById("ai-count");
-  
-    chrome.storage.local.get(["detectionEnabled", "aiCount"], (data) => {
-      const enabled = data.detectionEnabled !== false;
-      statusEl.textContent = enabled ? "Extension is active" : "Extension is disabled";
-      toggleBtn.textContent = enabled ? "Disable Detection" : "Enable Detection";
-      countEl.textContent = data.aiCount || 0;
+  const countEl = document.getElementById("count");
+  const resetBtn = document.getElementById("reset");
+  const debugLogEl = document.getElementById("debugLog");
+
+  // Load detection count
+  chrome.storage.local.get(["aiCount"], (data) => {
+    countEl.textContent = data.aiCount || 0;
+  });
+
+  // Reset button
+  resetBtn.addEventListener("click", () => {
+    chrome.storage.local.set({ aiCount: 0 }, () => {
+      countEl.textContent = 0;
     });
-  
-    toggleBtn.addEventListener("click", () => {
-      chrome.storage.local.get(["detectionEnabled"], (data) => {
-        const newState = !(data.detectionEnabled !== false);
-        chrome.storage.local.set({ detectionEnabled: newState }, () => {
-          statusEl.textContent = newState ? "Extension is active" : "Extension is disabled";
-          toggleBtn.textContent = newState ? "Disable Detection" : "Enable Detection";
-        });
-      });
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      chrome.tabs.sendMessage(tabs[0].id, "resetCount");
     });
   });
+
+  // Load debug logs
+  chrome.storage.local.get(["quipLogs"], (data) => {
+    const logs = data.quipLogs || [];
+    debugLogEl.textContent = logs.join("\n");
+  });
+
+  // Tab switching
+  document.querySelectorAll(".tab").forEach(tab => {
+    tab.addEventListener("click", () => {
+      document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+      document.querySelectorAll(".tab-content").forEach(c => c.classList.remove("active"));
+
+      tab.classList.add("active");
+      document.getElementById(tab.dataset.tab).classList.add("active");
+    });
+  });
+});

@@ -1,5 +1,5 @@
 # Most Important
-- [ ] Implement MutationObserver for scrolling content  
+- [x] Implement MutationObserver for scrolling content  
 *Detect and analyze newly loaded <img> elements dynamically.*  
 
 - [ ] Implement Hive detection API  
@@ -12,7 +12,7 @@
 *Improve efficiency and robustness of near-duplicate p-hash lookups for fuzzy matching.*  
 
 # Functionality
-- [ ] Throttle or debounce API calls  
+- [x] Throttle or debounce API calls  
 *Avoid spamming the Flask server with requests during scroll bursts.*  
 
 - [ ] Add a cache of seen URLs on the frontend  

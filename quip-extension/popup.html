@@ -1,24 +1,65 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>quip - AI Image Detector</title>
-  <link rel="stylesheet" href="style.css">
+  <title>quip AI Detector</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 10px;
+      width: 250px;
+    }
+    .tabs {
+      display: flex;
+      margin-bottom: 10px;
+    }
+    .tab {
+      flex: 1;
+      padding: 5px;
+      text-align: center;
+      cursor: pointer;
+      background: #eee;
+      border: 1px solid #ccc;
+    }
+    .tab.active {
+      background: #fff;
+      font-weight: bold;
+    }
+    .tab-content {
+      display: none;
+    }
+    .tab-content.active {
+      display: block;
+    }
+    #debugLog {
+      max-height: 150px;
+      overflow-y: auto;
+      font-size: 12px;
+      background: #f9f9f9;
+      border: 1px solid #ccc;
+      padding: 5px;
+      white-space: pre-wrap;
+    }
+    button {
+      margin-top: 10px;
+    }
+  </style>
 </head>
 <body>
-  <div class="container">
-    <h1>quip</h1>
-    <p id="status">Extension is active</p>
-
-    <div class="info">
-      <span>Images flagged:</span>
-      <span id="ai-count">0</span>
-    </div>
-
-    <button id="toggle">Disable Detection</button>
-
-    <hr />
-    <a href="https://github.com/padln/quip2" target="_blank">View Source</a>
+  <div class="tabs">
+    <div class="tab active" data-tab="statusTab">Status</div>
+    <div class="tab" data-tab="debugTab">Debug</div>
   </div>
+
+  <div id="statusTab" class="tab-content active">
+    <p>AI images detected:</p>
+    <div id="count">0</div>
+    <button id="reset">Reset</button>
+  </div>
+
+  <div id="debugTab" class="tab-content">
+    <div id="debugLog">Loading logs...</div>
+  </div>
+
   <script src="popup.js"></script>
 </body>
 </html>
