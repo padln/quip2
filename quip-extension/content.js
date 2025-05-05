@@ -42,3 +42,35 @@ async function addWarningOverlay(img) {
     }
   }
 })();
+
+// This function should be called when an image is detected as AI-generated
+function markAsAIGenerated(img) {
+  // You can skip very small images
+  if (img.width < 200 || img.height < 200) return;
+
+  // Add visual mark (example)
+  const overlay = document.createElement("div");
+  overlay.textContent = "⚠️";
+  overlay.style.position = "absolute";
+  overlay.style.top = "5px";
+  overlay.style.right = "5px";
+  overlay.style.zIndex = "9999";
+  overlay.style.fontSize = "18px";
+  img.style.position = "relative";
+  img.parentElement.style.position = "relative";
+  img.parentElement.appendChild(overlay);
+
+  // Increment the count in chrome.storage
+  chrome.storage.local.get(["aiCount"], (data) => {
+    const count = data.aiCount || 0;
+    chrome.storage.local.set({ aiCount: count + 1 });
+  });
+}
+
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request === "resetCount") {
+    chrome.storage.local.set({ aiCount: 0 });
+  }
+});
+
+chrome.runtime.sendMessage("resetCount");
