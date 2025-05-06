@@ -24,12 +24,17 @@ function markAsAIGenerated(img) {
     if (!img.src || img.dataset.quipChecked === "true") return;
   
     img.dataset.quipChecked = "true";
-  
+    
+    logToStorage(`Queried server for image: ${img.src}`);
+
     fetchCheck(img.src)
       .then(data => {
         if (data.likely_ai) {
           markAsAIGenerated(img);
         }
       })
-      .catch(err => console.error("Quip error checking image:", err));
+      .catch(err => {
+        logToStorage(`Fetch failed for ${img.src}: ${err.message}`); // Log error to quipLog
+        console.error("Quip fetch error:", err); // Log error to console
+      });
   }
