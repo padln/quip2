@@ -1,4 +1,8 @@
 // content.js (main entry point)
+import { initWasm } from "./wasm-loader.js";
+import { handleImage } from "./imageHandler.js";
+import { observeNewImages } from "./observer.js";
+
 chrome.runtime.sendMessage("resetCount");
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
@@ -29,3 +33,15 @@ fetch("http://localhost:5050/ping")
     else logToStorage("Server responded with error.");
   })
   .catch(() => logToStorage("Server unreachable."));
+
+(async function init() {
+  await initWasm();
+  chrome.runtime.sendMessage("resetCount");
+
+  document.querySelectorAll("img").forEach(handleImage);
+  observeNewImages(handleImage);
+
+  window.addEventListener("scroll", debounce(() => {
+    document.querySelectorAll("img").forEach(handleImage);
+  }, 300));
+})();

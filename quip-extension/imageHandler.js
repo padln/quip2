@@ -1,40 +1,52 @@
 // imageHandler.js
-function markAsAIGenerated(img) {
-    if (img.width < 200 || img.height < 200) return;
-  
-    const overlay = document.createElement("div");
-    overlay.textContent = "⚠️";
-    overlay.style.position = "absolute";
-    overlay.style.top = "5px";
-    overlay.style.right = "5px";
-    overlay.style.zIndex = "9999";
-    overlay.style.fontSize = "18px";
-  
-    img.style.position = "relative";
-    img.parentElement.style.position = "relative";
-    img.parentElement.appendChild(overlay);
-  
-    chrome.storage.local.get(["aiCount"], (data) => {
-      const count = data.aiCount || 0;
-      chrome.storage.local.set({ aiCount: count + 1 });
-    });
-  }
-  
-  function handleImage(img) {
-    if (!img.src || img.dataset.quipChecked === "true") return;
-  
-    img.dataset.quipChecked = "true";
-    
-    logToStorage(`Queried server for image: ${img.src}`);
+import { phashImageBytes } from "./wasm-loader.js";
 
-    fetchCheck(img.src)
-      .then(data => {
-        if (data.likely_ai) {
-          markAsAIGenerated(img);
-        }
-      })
-      .catch(err => {
-        logToStorage(`Fetch failed for ${img.src}: ${err.message}`); // Log error to quipLog
-        console.error("Quip fetch error:", err); // Log error to console
-      });
+export async function handleImage(img) {
+  try {
+    // Skip if already processed
+    if (img.dataset.quipProcessed) return;
+    img.dataset.quipProcessed = "true";
+
+    const res = await fetch(img.src, { mode: "cors" });
+    const blob = await res.blob();
+    const bytes = new Uint8Array(await blob.arrayBuffer());
+
+    const phash = await phashImageBytes(bytes);
+
+    const resultRes = await fetch(`http://localhost:5050/results?phash=${encodeURIComponent(phash)}`);
+    const resultData = await resultRes.json();
+
+    if (resultData.error) {
+      console.warn("Server responded with error:", resultData.error);
+      return;
+    }
+
+    // Simple decision rule
+    const isAI = resultData.p_yes > resultData.p_no;
+
+    // Annotate the image
+    annotateImage(img, isAI, resultData);
+  } catch (err) {
+    console.error("Error in handleImage:", err);
   }
+}
+
+function annotateImage(img, isAI, data) {
+  img.style.border = isAI ? "3px solid red" : "3px solid green";
+  const label = document.createElement("div");
+  label.textContent = isAI ? "AI-Generated?" : "Real?";
+  label.style.position = "absolute";
+  label.style.background = "rgba(0,0,0,0.6)";
+  label.style.color = "white";
+  label.style.fontSize = "12px";
+  label.style.padding = "2px 4px";
+  label.style.zIndex = 9999;
+  label.style.pointerEvents = "none";
+
+  // Insert above the image
+  const wrapper = document.createElement("div");
+  wrapper.style.position = "relative";
+  img.parentNode.insertBefore(wrapper, img);
+  wrapper.appendChild(img);
+  wrapper.appendChild(label);
+}
