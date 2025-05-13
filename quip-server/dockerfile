@@ -8,6 +8,7 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+COPY libsqlite_hamming.so .
 COPY server.py .
 
 # Expose port Flask will run on
