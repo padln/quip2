@@ -1,0 +1,15 @@
+{
+  "name": "phash_wasm",
+  "type": "module",
+  "version": "0.1.0",
+  "files": [
+    "phash_wasm_bg.wasm",
+    "phash_wasm.js",
+    "phash_wasm.d.ts"
+  ],
+  "main": "phash_wasm.js",
+  "types": "phash_wasm.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ]
+}
