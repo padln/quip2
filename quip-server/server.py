@@ -29,21 +29,56 @@ db.load_extension("./libsqlite_hamming.so")
 db.enable_load_extension(False)
 
 with db as tx:
-    # Create the table if it doesn't exist 
-    # countaining the phash and blake3 hashes
-    # and the judgement (0 or 1) and probability
-    tx.execute(
-        """
-        CREATE TABLE images (
+    # Create table for storing images and judgments
+    tx.execute("""
+        CREATE TABLE IF NOT EXISTS images (
             id INTEGER PRIMARY KEY,
-            phash BLOB,
+            mean BLOB,
+            gradient BLOB,
+            double_gradient BLOB,
+            block BLOB,
+            dct BLOB,
             blake3 BLOB,
             judgement INTEGER,
             probability REAL
         )
-        """
-    )
+    """)
+
+    # Create accuracy tracking for each hash type
+    tx.execute("""
+        CREATE TABLE IF NOT EXISTS hash_accuracy (
+            hash_type TEXT PRIMARY KEY,
+            correct INTEGER DEFAULT 0,
+            incorrect INTEGER DEFAULT 0
+        )
+    """)
+
+    # Seed the accuracy table with known hash types
+    for hash_type in ["mean", "gradient", "double_gradient", "block", "dct"]:
+        tx.execute("""
+            INSERT OR IGNORE INTO hash_accuracy (hash_type, correct, incorrect)
+            VALUES (?, 0, 0)
+        """, (hash_type,))
+
     tx.commit()
+
+def get_hash_weights():
+    with db_lock, db as tx:
+        rows = tx.execute("SELECT hash_type, correct, incorrect FROM hash_accuracy").fetchall()
+
+    raw_weights = {}
+    for hash_type, correct, incorrect in rows:
+        total = correct + incorrect
+        if total == 0:
+            weight = 1.0  # If unused, start optimistically
+        else:
+            weight = correct / total
+        raw_weights[hash_type] = weight
+
+    # Normalize
+    total_weight = sum(raw_weights.values()) or 1.0
+    normalized_weights = {k: v / total_weight for k, v in raw_weights.items()}
+    return normalized_weights
 
 @app.route("/check")
 def check_image():
@@ -80,47 +115,19 @@ def check_image():
 
 @app.route("/results", methods=["POST"])
 def add_image():
-    """
-    Handles the POST request to add an image record to the database.
-
-    Route:
-        /results
-
-    Methods:
-        POST
-
-    Request Body (JSON):
-        - phash (str): Base64-encoded perceptual hash of the image.
-        - blake3 (str): BLAKE3 hash of the image.
-        - judgement (bool): Judgement value associated with the image.
-        - probability (float): Probability score associated with the image.
-
-    Responses:
-        - 201: Successfully added the image record to the database.
-            {
-                "status": "success"
-            }
-        - 400: Bad request due to missing or invalid data.
-            {
-                "error": "Error message"
-            }
-        - 500: Internal server error due to database issues.
-            {
-                "error": "Error message"
-            }
-
-    Raises:
-        - ValueError: If the data contains invalid types.
-        - TypeError: If the data contains invalid types.
-        - KeyError: If required keys are missing from the request body.
-        - sqlite3.Error: If there is an error interacting with the database.
-    """
     data = request.get_json()
     try:
-        phash = base64.b64decode(str(data["phash"]))
+        hash_vector = data["hash_vector"]
+        mean = base64.b64decode(hash_vector["mean"])
+        gradient = base64.b64decode(hash_vector["gradient"])
+        double_gradient = base64.b64decode(hash_vector["double_gradient"])
+        block = base64.b64decode(hash_vector["block"])
+        dct = base64.b64decode(hash_vector["dct"])
+
         blake3 = str(data["blake3"])
-        judgement = bool(data["judgement"])
+        judgement = int(bool(data["judgement"]))
         probability = float(data["probability"])
+
     except (ValueError, TypeError) as e:
         return jsonify({"error": str(e)}), 400
     except KeyError as e:
@@ -129,8 +136,10 @@ def add_image():
     try:
         with db_lock, db as tx:
             # Insert image record
-            tx.execute("INSERT INTO images (phash, blake3, judgement, probability) VALUES (?, ?, ?, ?)",
-                       (phash, blake3, judgement, probability))
+            tx.execute("""
+                INSERT INTO images (mean, gradient, double_gradient, block, dct, blake3, judgement, probability)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """, (mean, gradient, double_gradient, block, dct, blake3, judgement, probability))
             tx.commit()
         logger.debug("Image added to database: %s", data)
         return jsonify({"status": "success"}), 201
@@ -140,80 +149,120 @@ def add_image():
 
 @app.route("/results", methods=["GET"])
 def query_images():
-    """
-    Handles the GET request to query the database for images similar to the provided perceptual hash (phash).
-
-    Route:
-        /results
-
-    Methods:
-        GET
-
-    Query Parameters:
-        - phash (str): Base64-encoded perceptual hash of the image to query.
-
-    Responses:
-        - 200: Successfully retrieved matching images and calculated probabilities.
-            {
-                "p_yes": float,  # Probability of a "yes" judgement.
-                "p_no": float,   # Probability of a "no" judgement.
-                "n_matches": int # Number of matching images found.
-            }
-        - 400: Bad request due to missing or invalid query parameters.
-            {
-                "error": "Error message"
-            }
-        - 404: No matching images found in the database.
-            {
-                "error": "No matching image found"
-            }
-        - 500: Internal server error due to database issues.
-            {
-                "error": "Error message"
-            }
-    """
     try:
-        # Decode the provided base64-encoded perceptual hash (phash) from the query parameter
-        phash = base64.b64decode(request.args["phash"])
-    except KeyError as e:
-        # Return an error if the required query parameter is missing
-        return jsonify({"error": f"Missing query param: {e}"}), 400
+        # The request should include a full phash vector
+        phash_vector = request.args.get("phash_vector")
+        if not phash_vector:
+            return jsonify({"error": "Missing phash_vector"}), 400
+
+        # Parse and decode from base64 JSON string
+        import json
+        raw_vector = json.loads(phash_vector)
+        query_hashes = {k: base64.b64decode(v) for k, v in raw_vector.items()}
+
+    except Exception as e:
+        return jsonify({"error": f"Failed to parse input: {e}"}), 400
 
     try:
+        weights = get_hash_weights()
+
         with db_lock:
-            # Query the database for images with a Hamming distance less than a threshold (min_dist)
-            # and retrieve the closest matches, ordered by distance
-            rows = db.execute(
-                """
-                    SELECT i.judgement, i.probability, hamming(i.phash, :phash) AS dist
-                    FROM images AS i
-                    WHERE dist < :min_dist
-                    ORDER BY dist ASC
-                    LIMIT :max_results
-                """,
-                # Parameters for the query: phash to compare, minimum distance, and max results to return
-                dict(phash=phash, min_dist=5, max_results=10)
-            ).fetchall()
+            rows = db.execute("""
+                SELECT judgement, probability, mean, gradient, double_gradient, block, dct
+                FROM images
+            """).fetchall()
+
+        results = []
+
+        for row in rows:
+            judgement, probability = row[0], row[1]
+            stored_hashes = {
+                "mean": row[2],
+                "gradient": row[3],
+                "double_gradient": row[4],
+                "block": row[5],
+                "dct": row[6]
+            }
+
+            total_weighted_distance = 0.0
+            valid_types = 0
+
+            for k in weights:
+                if k in stored_hashes and k in query_hashes and stored_hashes[k] and query_hashes[k]:
+                    dist = sum(bin(x ^ y).count("1") for x, y in zip(stored_hashes[k], query_hashes[k]))
+                    total_weighted_distance += weights[k] * dist
+                    valid_types += 1
+
+            if valid_types > 0:
+                results.append((judgement, probability, total_weighted_distance))
+
+        # Sort by distance and take top N
+        results.sort(key=lambda x: x[2])
+        top_matches = results[:5]
+
+        if not top_matches:
+            return jsonify({"error": "No matching entries found", "check_model": True}), 404
+
+        total_ai = sum(prob if judge == 1 else (1 - prob) for judge, prob, _ in top_matches)
+        avg_ai_score = total_ai / len(top_matches)
+
+        return jsonify({
+            "p_yes": avg_ai_score,
+            "p_no": 1 - avg_ai_score,
+            "n_matches": len(top_matches),
+            "likely_ai": avg_ai_score > 0.7  # adjustable threshold
+        })
+
+    except Exception as e:
+        return jsonify({"error": f"Internal error: {e}"}), 500
+
+@app.route("/feedback", methods=["POST"])
+def feedback():
+    """
+    Endpoint to receive feedback on hash contributions for classification accuracy.
+
+    Expects a JSON payload with:
+        - "hash_contributions": dict mapping hash types to their contribution values (float or int).
+        - "correct": boolean indicating if the classification was accurate.
+
+    For each hash type, updates the 'hash_accuracy' table in the database by incrementing
+    either the 'correct' or 'incorrect' column based on the 'correct' flag.
+
+    Returns:
+        - 200 JSON {"status": "updated"} on success.
+        - 400 JSON {"error": "..."} if input is invalid.
+        - 500 JSON {"error": "..."} if a database error occurs.
+    """
+    data = request.get_json()
+    try:
+        hash_contributions = data["hash_contributions"]  # { "mean": 0.21, "dct": 0.39, ... }
+        correct = bool(data["correct"])  # whether the classification was accurate
+    except (KeyError, TypeError, ValueError) as e:
+        return jsonify({"error": f"Invalid input: {e}"}), 400
+
+    try:
+        with db_lock, db as tx:
+            for hash_type, contribution in hash_contributions.items():
+                if not isinstance(contribution, (int, float)):
+                    continue  # skip malformed values
+
+                if correct:
+                    tx.execute("""
+                        UPDATE hash_accuracy
+                        SET correct = correct + ?
+                        WHERE hash_type = ?
+                    """, (contribution, hash_type))
+                else:
+                    tx.execute("""
+                        UPDATE hash_accuracy
+                        SET incorrect = incorrect + ?
+                        WHERE hash_type = ?
+                    """, (contribution, hash_type))
+            tx.commit()
     except sqlite3.Error as e:
-        # Return an error if there is an issue with the database query
         return jsonify({"error": str(e)}), 500
 
-    if len(rows) == 0:
-        # Return a 404 error if no matching images are found
-        return jsonify({"error": "No matching image found"}), 404
-
-    # Calculate the probabilities of "yes" and "no" judgements based on the retrieved matches
-    total_yes = sum(row[1] for row in rows if row[0] == 1) + sum((1 - row[1]) for row in rows if row[0] == 0)
-    total_no =  sum(row[1] for row in rows if row[0] == 0) + sum((1 - row[1]) for row in rows if row[0] == 1)
-    p_yes = total_yes / (total_yes + total_no)
-    p_no = total_no / (total_yes + total_no)
-
-    # Return the calculated probabilities and the number of matches found
-    return jsonify({
-        "p_yes": p_yes,       # Probability of a "yes" judgement
-        "p_no": p_no,         # Probability of a "no" judgement
-        "n_matches": len(rows) # Number of matching images found
-    })
+    return jsonify({"status": "updated"})
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5050)
