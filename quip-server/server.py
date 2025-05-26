@@ -82,6 +82,19 @@ def get_hash_weights():
 
 @app.route("/check")
 def check_image():
+    """
+    Downloads and hashes an image from a given URL using phash.
+    Checks Redis for a cached AI/real classification.
+
+    Query Params:
+        - url: The URL of the image to check.
+
+    Returns:
+        - JSON response with:
+            - cached: True/False
+            - phash: the computed perceptual hash
+            - result: "ai" or "real"
+    """
     image_url = request.args.get("url")
     if not image_url:
         return jsonify({"error": "No URL provided"}), 400
@@ -115,6 +128,20 @@ def check_image():
 
 @app.route("/results", methods=["POST"])
 def add_image():
+    """
+    Adds a new image hash vector and its associated classification result
+    (from a model or human) to the image database.
+
+    Request JSON:
+        - hash_vector: dict of 5 base64-encoded hashes
+        - blake3: string hash of original image content
+        - judgement: bool (True if AI-generated)
+        - probability: model's confidence in judgement
+
+    Returns:
+        - 201 JSON {"status": "success"} if inserted
+        - 400/500 on error
+    """
     data = request.get_json()
     try:
         hash_vector = data["hash_vector"]
@@ -149,6 +176,21 @@ def add_image():
 
 @app.route("/results", methods=["GET"])
 def query_images():
+    """
+    Compares a submitted hash vector against known entries using
+    weighted Hamming distance.
+
+    Query Params:
+        - phash_vector: JSON-encoded dict of base64-encoded hashes
+
+    Returns:
+        - JSON with:
+            - p_yes: probability image is AI-generated
+            - p_no: probability image is real
+            - n_matches: number of database matches
+            - likely_ai: True/False based on confidence threshold
+            - check_model: True if no match and fallback is needed
+    """
     try:
         # The request should include a full phash vector
         phash_vector = request.args.get("phash_vector")

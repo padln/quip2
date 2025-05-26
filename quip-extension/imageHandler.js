@@ -1,4 +1,5 @@
 // imageHandler.js
+import { getFromCache, addToCache } from "./cache.js";
 import { phashImageBytes } from "./wasm-loader.js";
 
 export async function handleImage(img) {
@@ -7,10 +8,19 @@ export async function handleImage(img) {
     if (img.dataset.quipProcessed) return;
     img.dataset.quipProcessed = "true";
 
-    const res = await fetch(img.src, { mode: "cors" });
+    const imageUrl = img.src;
+    const cached = await getFromCache(imageUrl);
+
+    if (cached) {
+      console.log("Cache hit:", cached);
+      annotateImage(img, cached.result === "ai", cached);
+      return;
+    }
+
+    // Not in cache, fetch and compute hash
+    const res = await fetch(imageUrl, { mode: "cors" });
     const blob = await res.blob();
     const bytes = new Uint8Array(await blob.arrayBuffer());
-
     const phash = await phashImageBytes(bytes);
 
     const resultRes = await fetch(`http://localhost:5050/results?phash=${encodeURIComponent(phash)}`);
@@ -21,11 +31,17 @@ export async function handleImage(img) {
       return;
     }
 
-    // Simple decision rule
     const isAI = resultData.p_yes > resultData.p_no;
 
     // Annotate the image
     annotateImage(img, isAI, resultData);
+
+    // Store in cache
+    await addToCache(imageUrl, {
+      result: isAI ? "ai" : "real",
+      confidence: resultData.p_yes,
+    });
+
   } catch (err) {
     console.error("Error in handleImage:", err);
   }
