@@ -37,18 +37,16 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // Tab switching
-  document.querySelectorAll(".tab").forEach(tab => {
-    tab.addEventListener("click", () => {
-      document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
-      document.querySelectorAll(".tab-content").forEach(c => c.classList.remove("active"));
+  document.querySelectorAll('.tab').forEach(tabBtn => {
+  tabBtn.addEventListener('click', function() {
+    // Remove active class from all tabs and contents
+    document.querySelectorAll('.tab').forEach(btn => btn.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
 
-      tab.classList.add("active");
-      const tabId = tab.dataset.tab;
-      document.getElementById(tabId).classList.add("active");
-
-      if (tabId === "cache") {
-        loadCacheEntries();
-      }
+    // Add active class to clicked tab and corresponding content
+    this.classList.add('active');
+    const tabId = this.getAttribute('data-tab');
+    document.getElementById(tabId).classList.add('active');
     });
   });
 });

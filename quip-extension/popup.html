@@ -1,55 +1,12 @@
 <!DOCTYPE html>
 <html>
+
 <head>
   <title>quip AI Detector</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      padding: 10px;
-      width: 280px;
-    }
-    .tab-bar {
-      display: flex;
-      margin-bottom: 10px;
-    }
-    .tab {
-      flex: 1;
-      padding: 6px;
-      text-align: center;
-      cursor: pointer;
-      background: #eee;
-      border: 1px solid #ccc;
-      border-bottom: none;
-    }
-    .tab.active {
-      background: #fff;
-      font-weight: bold;
-    }
-    .tab-content {
-      display: none;
-      border: 1px solid #ccc;
-      padding: 10px;
-      background: #fff;
-    }
-    .tab-content.active {
-      display: block;
-    }
-    #debugLog, #cacheOutput {
-      max-height: 160px;
-      overflow-y: auto;
-      font-size: 12px;
-      background: #f9f9f9;
-      border: 1px solid #ccc;
-      padding: 5px;
-      white-space: pre-wrap;
-    }
-    button {
-      margin-top: 8px;
-    }
-  </style>
+  <link rel="stylesheet" href="style.css">
 </head>
-<body>
 
+<body>
   <!-- Tab Buttons -->
   <div class="tab-bar">
     <button class="tab active" data-tab="stats">Stats</button>
@@ -73,4 +30,5 @@
 
   <script src="popup.js"></script>
 </body>
+
 </html>
