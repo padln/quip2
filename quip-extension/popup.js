@@ -22,7 +22,13 @@ document.addEventListener("DOMContentLoaded", () => {
   // Load debug logs
   chrome.storage.local.get(["quipLogs"], (data) => {
     const logs = data.quipLogs || [];
-    debugLogEl.textContent = logs.join("\n");
+    debugLogEl.innerHTML = logs
+      .map(line =>
+        line.includes("Failed to fetch")
+          ? `<span class="error-log">${line}</span>`
+          : line
+      )
+      .join("<br>");
   });
 
   // Load cache data

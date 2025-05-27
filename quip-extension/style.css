@@ -39,7 +39,7 @@ body {
 
 #debugLog,
 #cacheOutput {
-  max-height: 160px;
+  max-height: 300px;
   overflow-y: auto;
   font-size: 12px;
   background: #f9f9f9;
@@ -66,4 +66,9 @@ button:focus {
   background: linear-gradient(90deg, #0056b3 60%, #3a86ff 100%);
   outline: none;
   box-shadow: 0 4px 12px rgba(0, 86, 179, 0.12);
+}
+
+.error-log {
+  color: #d32f2f;
+  font-weight: bold;
 }
