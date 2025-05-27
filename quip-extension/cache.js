@@ -47,3 +47,27 @@ export async function addToCache(key, resultData) {
 
   await saveCache(cache);
 }
+
+export async function pruneExpiredEntries() {
+  const cache = await loadCache();
+  const now = Date.now();
+  const pruned = {};
+
+  const entries = Object.entries(cache).filter(([_, entry]) => {
+    const age = now - new Date(entry.timestamp).getTime();
+    return age <= EXPIRY_MS;
+  });
+
+  // Sort by most recent
+  entries.sort(([, a], [, b]) =>
+    new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+  );
+
+  // Trim to MAX_ENTRIES
+  for (let i = 0; i < Math.min(entries.length, MAX_ENTRIES); i++) {
+    const [key, value] = entries[i];
+    pruned[key] = value;
+  }
+
+  await saveCache(pruned);
+}

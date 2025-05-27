@@ -2,6 +2,8 @@
 import { initWasm } from "./wasm-loader.js";
 import { handleImage } from "./imageHandler.js";
 import { observeNewImages } from "./observer.js";
+import { pruneExpiredEntries } from "./cache.js";
+pruneExpiredEntries();
 
 chrome.runtime.sendMessage("resetCount");
 

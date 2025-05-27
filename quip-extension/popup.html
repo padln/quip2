@@ -6,19 +6,20 @@
     body {
       font-family: Arial, sans-serif;
       padding: 10px;
-      width: 250px;
+      width: 280px;
     }
-    .tabs {
+    .tab-bar {
       display: flex;
       margin-bottom: 10px;
     }
     .tab {
       flex: 1;
-      padding: 5px;
+      padding: 6px;
       text-align: center;
       cursor: pointer;
-      background: #fff;
+      background: #eee;
       border: 1px solid #ccc;
+      border-bottom: none;
     }
     .tab.active {
       background: #fff;
@@ -26,38 +27,48 @@
     }
     .tab-content {
       display: none;
+      border: 1px solid #ccc;
+      padding: 10px;
+      background: #fff;
     }
     .tab-content.active {
       display: block;
     }
-    #debugLog {
-      max-height: 150px;
+    #debugLog, #cacheOutput {
+      max-height: 160px;
       overflow-y: auto;
       font-size: 12px;
-      background: #fff;
+      background: #f9f9f9;
       border: 1px solid #ccc;
       padding: 5px;
       white-space: pre-wrap;
     }
     button {
-      margin-top: 10px;
+      margin-top: 8px;
     }
   </style>
 </head>
 <body>
-  <div class="tabs">
-    <div class="tab active" data-tab="statusTab">Status</div>
-    <div class="tab" data-tab="debugTab">Debug</div>
+
+  <!-- Tab Buttons -->
+  <div class="tab-bar">
+    <button class="tab active" data-tab="stats">Stats</button>
+    <button class="tab" data-tab="debug">Debug</button>
+    <button class="tab" data-tab="cache">Cache</button>
   </div>
 
-  <div id="statusTab" class="tab-content active">
-    <p>AI images detected:</p>
-    <div id="count">0</div>
-    <button id="reset">Reset</button>
+  <!-- Tab Contents -->
+  <div id="stats" class="tab-content active">
+    <p>AI Detections: <span id="count">0</span></p>
+    <button id="reset">Reset Count</button>
   </div>
 
-  <div id="debugTab" class="tab-content">
-    <div id="debugLog">Loading logs...</div>
+  <div id="debug" class="tab-content">
+    <pre id="debugLog">Loading logs...</pre>
+  </div>
+
+  <div id="cache" class="tab-content">
+    <pre id="cacheOutput">Loading cache...</pre>
   </div>
 
   <script src="popup.js"></script>
